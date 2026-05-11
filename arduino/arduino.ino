@@ -17,7 +17,7 @@ const char* ssid = "Hello123";
 const char* password = "86868686";
 
 // CẤU HÌNH SERVER (Quan trọng: Cập nhật IP máy tính bạn)
-const char* serverUrl = "https://60179632377e05eb-171-241-78-48.serveousercontent.com/attendance/swipe";
+const char* serverUrl = "https://448b1884fc7ca9e6-171-241-78-48.serveousercontent.com/attendance/swipe";
 const char* readerId = "69ff24d6d49100db02e88893"; 
 
 MFRC522 rfid(SS_PIN, RST_PIN);

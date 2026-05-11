@@ -2,6 +2,8 @@ import express from "express";
 import * as genericRes from "./generic.controller";
 import * as auth from "../configurations/auth.config";
 import UserModel from "../models/user.model";
+import attendanceModel from "../models/attendance.model";
+import tagModel from "../models/tag.model";
 
 const excludeSensitiveFields = "-password -__v -createdAt -updatedAt";
 
@@ -101,7 +103,25 @@ export async function deleteEntity(req: express.Request, res: express.Response) 
     if (!queryId) return genericRes.badRequest(req, res, "Must provide user id.");
     let deletedUser = await UserModel.findByIdAndDelete(queryId).select(excludeSensitiveFields);
     if (!deletedUser) return genericRes.badRequest(req, res, "Failed to delete user.");
-    return genericRes.successOk(req, res, deletedUser, "Deleted user successfully!");
+
+    // Dọn dẹp dữ liệu liên quan
+    try {
+      // 1. Gỡ học sinh khỏi tất cả các bản ghi điểm danh
+      await attendanceModel.updateMany(
+        { students: queryId },
+        { $pull: { students: queryId } }
+      );
+
+      // 2. Xóa các ca điểm danh không còn học sinh nào
+      await attendanceModel.deleteMany({ "students.0": { $exists: false } });
+
+      // 3. Xóa các mã thẻ gắn với học sinh này
+      await tagModel.deleteMany({ associated: queryId });
+    } catch (cleanupError) {
+      console.error("Lỗi dọn dẹp sau khi xóa user:", cleanupError);
+    }
+
+    return genericRes.successOk(req, res, deletedUser, "Deleted user successfully and cleaned up related records.");
   }
 
   // Non admin users can only delete themselves i.e. suspend instead of delete

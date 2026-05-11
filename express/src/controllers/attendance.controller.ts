@@ -18,17 +18,20 @@ export async function getEntity(req: express.Request, res: express.Response) {
     const queryReader = req.query.reader?.toString().trim();
     const queryStudent = req.query.student?.toString().trim();
     const queryReason = req.query.reason?.toString().trim();
-    let query = {};
-    if (queryId) query = { ...query, _id: queryId };
-    if (queryDate) query = { ...query, date: queryDate };
-    if (queryTimeIn) query = { ...query, timeIn: { $gte: queryTimeIn } };
-    if (queryTimeOut) query = { ...query, timeOut: { $lte: queryTimeOut } };
-    if (queryReader) query = { ...query, reader: queryReader };
-    if (queryStudent) query = { ...query, students: queryStudent };
-    if (queryReason) query = { ...query, reason: queryReason };
+    let query: any = {};
+    if (queryId) query._id = queryId;
+    if (queryDate) query.date = queryDate;
+    if (queryTimeIn) query.timeIn = { $gte: queryTimeIn };
+    if (queryTimeOut) query.timeOut = { $lte: queryTimeOut };
+    if (queryReader) query.reader = queryReader;
+    if (queryStudent) query.students = queryStudent;
+    if (queryReason) query.reason = queryReason;
 
-    // Get all attendance records
-    const allAttendance = await attendanceModel.find(query).sort("date").populate("students", "-password -__v -createdAt -updatedAt").populate("reader", "-password -__v -createdAt -updatedAt");
+    // Chỉ hiện các ca có ít nhất 1 học sinh
+    query["students.0"] = { $exists: true };
+
+    // Get all attendance records (Sắp xếp mới nhất lên đầu)
+    const allAttendance = await attendanceModel.find(query).sort("-date -timeIn").populate("students", "-password -__v -createdAt -updatedAt").populate("reader", "-password -__v -createdAt -updatedAt");
     if (!allAttendance) return genericRes.badRequest(req, res, "Failed to get attendance records!");
     return genericRes.successOk(req, res, allAttendance, `Here are ${allAttendance.length} attendance records.`);
   } catch (error) {

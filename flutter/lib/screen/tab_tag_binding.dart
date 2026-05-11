@@ -86,19 +86,16 @@ class _TagBindingTabState extends State<TagBindingTab> {
               final phone = phoneController.text.trim();
               final email = emailController.text.trim();
 
-              // 1. Kiểm tra để trống
               if (name.isEmpty || phone.isEmpty || email.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Vui lòng nhập đầy đủ thông tin")));
                 return;
               }
 
-              // 2. Kiểm tra độ dài số điện thoại
               if (phone.length != 10) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Số điện thoại phải có đúng 10 số")));
                 return;
               }
 
-              // 3. Kiểm tra định dạng Email
               final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
               if (!emailRegex.hasMatch(email)) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Email không đúng định dạng")));
@@ -116,7 +113,7 @@ class _TagBindingTabState extends State<TagBindingTab> {
                 await userProvider.adminCreateUser(newUser, userProvider.token!);
                 if (mounted) {
                   Navigator.pop(context);
-                  fetchStudents(); // Tải lại danh sách
+                  fetchStudents();
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Thêm học sinh thành công!")));
                 }
               } catch (e) {
@@ -124,6 +121,41 @@ class _TagBindingTabState extends State<TagBindingTab> {
               }
             },
             child: const Text("Thêm"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteStudentConfirm(UserModel student) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Xóa học sinh?"),
+        content: Text("Bạn có chắc chắn muốn xóa hoàn toàn học sinh ${student.name} khỏi hệ thống?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Hủy")),
+          TextButton(
+            onPressed: () async {
+              final userProvider = Provider.of<UserProvider>(context, listen: false);
+              try {
+                final url = Uri.parse("${AppConstants.baseUrl}/user?id=${student.id}");
+                final response = await http.delete(url, headers: {'Authorization': userProvider.token!});
+                
+                if (response.statusCode == 200) {
+                  if (mounted) {
+                    Navigator.pop(context);
+                    fetchStudents();
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã xóa học sinh thành công!")));
+                  }
+                } else {
+                  throw Exception("Lỗi server: ${response.body}");
+                }
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: $e")));
+              }
+            },
+            child: const Text("Xóa", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -285,16 +317,28 @@ class _TagBindingTabState extends State<TagBindingTab> {
                         leading: CircleAvatar(child: Text(student.name?[0] ?? "U")),
                         title: Text(student.name ?? "Không tên"),
                         subtitle: Text(student.mobileNo),
-                        trailing: boundTag != null
-                            ? IconButton(
-                                icon: const Icon(Icons.delete_sweep_outlined, color: Colors.red),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (boundTag != null)
+                              IconButton(
+                                icon: const Icon(Icons.delete_sweep_outlined, color: Colors.orange),
                                 tooltip: "Hủy gán thẻ",
-                                onPressed: () => _showDeleteConfirm(student, boundTag.tag),
+                                onPressed: () => _showDeleteTagConfirm(student, boundTag.tag),
                               )
-                            : ElevatedButton(
+                            else
+                              ElevatedButton(
                                 onPressed: () => showBindingDialog(student),
                                 child: const Text("Gán thẻ"),
                               ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(Icons.person_remove_outlined, color: Colors.red),
+                              tooltip: "Xóa học sinh",
+                              onPressed: () => _showDeleteStudentConfirm(student),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -304,12 +348,12 @@ class _TagBindingTabState extends State<TagBindingTab> {
     );
   }
 
-  void _showDeleteConfirm(UserModel student, String tagUid) {
+  void _showDeleteTagConfirm(UserModel student, String tagUid) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Hủy gán thẻ?"),
-        content: Text("Bạn có chắc chắn muốn xóa thẻ của ${student.name}?"),
+        content: Text("Bạn có chắc chắn muốn xóa mã thẻ của ${student.name}?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Hủy")),
           TextButton(

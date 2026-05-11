@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:animate_do/animate_do.dart';
+import 'package:taptag/core/widgets/modern_button.dart';
+import 'package:taptag/core/widgets/modern_textfield.dart';
 import 'package:taptag/model/user.model.dart';
 import 'package:taptag/screen/home_screen.dart';
 import 'package:taptag/screen/register_screen.dart';
@@ -19,44 +22,102 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(30.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.credit_card, size: 80, color: Colors.blue),
-            const SizedBox(height: 10),
-            const Text(
-              "Tapcard",
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blue),
-            ),
-            const Text("Hệ thống điểm danh thông minh"),
-            const SizedBox(height: 40),
-            TextField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: "Số điện thoại",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.phone),
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: "Mật khẩu",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 30),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
+      backgroundColor: theme.colorScheme.surface,
+      body: Container(
+        height: double.infinity,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.primary.withOpacity(0.15),
+              theme.colorScheme.surface,
+              theme.colorScheme.secondary.withOpacity(0.1),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 30.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 60),
+                FadeInDown(
+                  duration: const Duration(milliseconds: 800),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.2),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        )
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.credit_card_rounded,
+                      size: 60,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FadeInDown(
+                  delay: const Duration(milliseconds: 200),
+                  child: Text(
+                    "Tapcard",
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                ),
+                FadeInDown(
+                  delay: const Duration(milliseconds: 400),
+                  child: Text(
+                    "Hệ thống điểm danh thông minh",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 60),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 600),
+                  child: ModernTextField(
+                    controller: _phoneController,
+                    label: "Số điện thoại",
+                    hint: "Nhập số điện thoại của bạn",
+                    prefixIcon: Icons.phone_android_rounded,
+                    keyboardType: TextInputType.phone,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 800),
+                  child: ModernTextField(
+                    controller: _passwordController,
+                    label: "Mật khẩu",
+                    hint: "Nhập mật khẩu",
+                    prefixIcon: Icons.lock_outline_rounded,
+                    obscureText: true,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 1000),
+                  child: ModernButton(
+                    isLoading: _isLoading,
+                    text: "Đăng nhập",
                     onPressed: () async {
                       setState(() => _isLoading = true);
                       try {
@@ -68,25 +129,54 @@ class _AuthScreenState extends State<AuthScreen> {
                           );
                         }
                       } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi đăng nhập: $e")));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Lỗi đăng nhập: $e"),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
                       } finally {
                         setState(() => _isLoading = false);
                       }
                     },
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    child: const Text("Đăng nhập"),
                   ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
-              },
-              child: const Text("Chưa có tài khoản? Đăng ký ngay"),
+                ),
+                const SizedBox(height: 20),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 1200),
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                      );
+                    },
+                    child: RichText(
+                      text: TextSpan(
+                        style: theme.textTheme.bodyMedium,
+                        children: [
+                          const TextSpan(text: "Chưa có tài khoản? "),
+                          TextSpan(
+                            text: "Đăng ký ngay",
+                            style: TextStyle(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
+
   }
 }
+
