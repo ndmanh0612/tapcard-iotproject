@@ -160,6 +160,26 @@ export async function endSession(req: express.Request, res: express.Response) {
   }
 }
 
+function removeVietnameseTones(str: string): string {
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+  str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+  str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+  str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+  str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+  str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+  str = str.replace(/đ/g, "d");
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+  str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+  str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+  str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Đ/g, "D");
+  // Some old or specific Vietnamese input methods (combining diacritics)
+  str = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return str;
+}
+
 export async function swipeTag(req: express.Request, res: express.Response) {
   console.log("-----------------------------------------");
   console.log("[Swipe] Incoming request from ESP32...");
@@ -168,13 +188,13 @@ export async function swipeTag(req: express.Request, res: express.Response) {
     const encryptedTag = req.body.tag?.toString().trim();
     if (!readerId || !encryptedTag) {
       console.log("[Swipe] Missing readerId or tag in body");
-      return genericRes.badRequest(req, res, "Missing reader or tag.");
+      return genericRes.badRequest(req, res, { status: "ERROR", message: "Missing reader or tag." }, "Missing reader or tag.");
     }
 
     const reader = await readerModel.findById(readerId);
     if (!reader) {
       console.log(`[Swipe] Reader not found: ${readerId}`);
-      return genericRes.badRequest(req, res, "Máy quét không tồn tại.");
+      return genericRes.badRequest(req, res, { status: "ERROR", message: "Máy quét không tồn tại." }, "Máy quét không tồn tại.");
     }
     
     const secretKey = Buffer.from(reader.secret, 'base64');
@@ -196,14 +216,14 @@ export async function swipeTag(req: express.Request, res: express.Response) {
       if (reader.isBindingMode) {
         console.log(`[Swipe] Emitting tag-detected for ${tagUid}`);
         io.emit("tag-detected", { tag: tagUid, reader: readerId });
-        return genericRes.successOk(req, res, {}, "Phát hiện thẻ mới trong chế độ Gán thẻ."); // Trả về success để ESP32 không báo lỗi
+        return genericRes.successOk(req, res, { status: "BINDING_MODE", tag: tagUid }, "Phát hiện thẻ mới trong chế độ Gán thẻ.");
       }
-      return genericRes.badRequest(req, res, "Thẻ chưa đăng ký và Chế độ Gán thẻ đang TẮT.");
+      return genericRes.badRequest(req, res, { status: "UNREGISTERED", tag: tagUid }, "Thẻ chưa đăng ký và Chế độ Gán thẻ đang TẮT.");
     }
 
     const session = await attendanceModel.findOne({ reader: readerId, isOpen: true });
     if (!session && !reader.isBindingMode) {
-      return genericRes.badRequest(req, res, "Không có phiên điểm danh nào đang mở.");
+      return genericRes.badRequest(req, res, { status: "NO_SESSION" }, "Không có phiên điểm danh nào đang mở.");
     }
 
     // Nếu có phiên đang mở, tiến hành ghi nhận điểm danh
@@ -215,6 +235,8 @@ export async function swipeTag(req: express.Request, res: express.Response) {
 
       // Gửi thông báo real-time cho App (Kèm theo thông tin User)
       const studentInfo = await mongoose.model("user").findById(tag.associated).select("name type mobileNo");
+      const studentNameRaw = studentInfo?.name || "Hoc sinh";
+      const studentNameUnsigned = removeVietnameseTones(studentNameRaw).toUpperCase();
 
       io.emit("new-attendance", {
         student: studentInfo,
@@ -223,13 +245,13 @@ export async function swipeTag(req: express.Request, res: express.Response) {
         time: Date.now()
       });
       
-      return genericRes.successOk(req, res, session, `Attendance logged for tag ${tagUid}`);
+      return genericRes.successOk(req, res, { status: "SUCCESS", studentName: studentNameUnsigned }, `Attendance logged for tag ${tagUid}`);
     }
 
     // Nếu không có phiên nhưng đang ở chế độ Binding, chỉ thông báo thành công cho ESP32 biết
-    return genericRes.successOk(req, res, {}, `Tag ${tagUid} detected in Binding Mode (No session).`);
+    return genericRes.successOk(req, res, { status: "BINDING_MODE_REGISTERED", tag: tagUid }, `Tag ${tagUid} detected in Binding Mode (No session).`);
   } catch (error) {
-    return genericRes.badRequest(req, res, (error as Error).message);
+    return genericRes.badRequest(req, res, { status: "ERROR", message: (error as Error).message }, (error as Error).message);
   }
 }
 
